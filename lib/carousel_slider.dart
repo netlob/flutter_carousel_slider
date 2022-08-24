@@ -122,35 +122,44 @@ class CarouselSliderState extends State<CarouselSlider>
     carouselState!.pageController = pageController;
   }
 
+  void handleAutoPlayCallback(_) {
+    final route = ModalRoute.of(context);
+    if (route?.isCurrent == false) {
+      return;
+    }
+
+    CarouselPageChangedReason previousReason = mode;
+    changeMode(CarouselPageChangedReason.timed);
+    int nextPage = carouselState!.pageController!.page!.round() + 1;
+    int itemCount = widget.itemCount ?? widget.items!.length;
+
+    if (nextPage >= itemCount && widget.options.enableInfiniteScroll == false) {
+      if (widget.options.pauseAutoPlayInFiniteScroll) {
+        clearTimer();
+        return;
+      }
+      nextPage = 0;
+    }
+
+    carouselState!.pageController!
+        .animateToPage(nextPage,
+            duration: widget.options.autoPlayAnimationDuration,
+            curve: widget.options.autoPlayCurve)
+        .then((_) => changeMode(previousReason));
+  }
+
   Timer? getTimer() {
-    return widget.options.autoPlay
-        ? Timer.periodic(widget.options.autoPlayInterval, (_) {
-            final route = ModalRoute.of(context);
-            if (route?.isCurrent == false) {
-              return;
-            }
-
-            CarouselPageChangedReason previousReason = mode;
-            changeMode(CarouselPageChangedReason.timed);
-            int nextPage = carouselState!.pageController!.page!.round() + 1;
-            int itemCount = widget.itemCount ?? widget.items!.length;
-
-            if (nextPage >= itemCount &&
-                widget.options.enableInfiniteScroll == false) {
-              if (widget.options.pauseAutoPlayInFiniteScroll) {
-                clearTimer();
-                return;
-              }
-              nextPage = 0;
-            }
-
-            carouselState!.pageController!
-                .animateToPage(nextPage,
-                    duration: widget.options.autoPlayAnimationDuration,
-                    curve: widget.options.autoPlayCurve)
-                .then((_) => changeMode(previousReason));
-          })
-        : null;
+    if (widget.options.autoPlay) {
+      Timer(Duration(milliseconds: 100), () {
+        handleAutoPlayCallback(null);
+      });
+      return Timer.periodic(
+        widget.options.autoPlayInterval,
+        handleAutoPlayCallback,
+      );
+    } else {
+      return null;
+    }
   }
 
   void clearTimer() {
